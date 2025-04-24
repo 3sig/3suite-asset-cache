@@ -6,6 +6,7 @@
   "dependencies": {
     "3lib-config": "github:3sig/3lib-config",
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "http-proxy-middleware": "^3.0.5"
   }
 }

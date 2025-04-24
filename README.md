@@ -1,9 +1,8 @@
-# 3suite
+# 3suite-asset-cache
 
-this repository serves as a template for 3suite projects. as of writing, it includes:
+asset-cache works as a proxy to transform HTTP-based APIs that respond with files or base64 assets to ones that respond with links.
 
-- 3lib-config setup
-- workflow actions for automated building and releasing via tags
+asset-cache saves files to a directory and returns a link with the filename, however some other service is required to serve the files. see [asset-cache](https://github.com/3sig/3suite-http-server)
 
 ## usage
 
