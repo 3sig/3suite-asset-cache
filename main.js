@@ -27,6 +27,10 @@ const proxyMiddleware = createProxyMiddleware({
           config.get("fileExtension", "");
         let filepath = config.get("directory") + "/" + filename;
 
+        if (req.headers["3suite-filepath"]) {
+          filepath = req.headers["3suite-filepath"];
+        }
+
         try {
           fs.writeFileSync(filepath, responseBuffer);
         } catch (err) {
