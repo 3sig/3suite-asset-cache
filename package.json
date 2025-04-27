@@ -1,12 +1,12 @@
 {
   "name": "3suite-asset-cache",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "main.js",
   "type": "module",
   "dependencies": {
     "3lib-config": "github:3sig/3lib-config",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "http-proxy-middleware": "^3.0.5"
+    "multer": "^1.4.5-lts.2"
   }
 }
