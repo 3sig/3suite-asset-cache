@@ -1,4 +1,3 @@
-
 import config from "3lib-config";
 import fs from "fs";
 import cors from "cors";
@@ -7,8 +6,8 @@ import express from "express";
 import { Readable } from "stream";
 import { finished } from "stream/promises";
 import multer from "multer";
-const storage = multer.memoryStorage()
-const upload = multer({ storage: storage })
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 // const upload = multer({ dest: 'uploads/' });
 
 config.init();
@@ -24,12 +23,10 @@ app.use(cors());
 
 let assetId = 0;
 async function handleRequest(req, res, method) {
-  console.log(req.body);
+  let response, stream, filename;
   try {
     console.log("executing request", config.get("destinationServer") + req.url);
     let modifiedHeaders = { ...req.headers };
-
-    delete modifiedHeaders["content-length"];
 
     let params = {
       method: method,
@@ -40,22 +37,24 @@ async function handleRequest(req, res, method) {
       let contentType = req.headers["content-type"];
       if (contentType.startsWith("application/json")) {
         params.body = JSON.stringify(req.body);
-      }
-      else if (contentType.startsWith("multipart/form-data")) {
+      } else if (contentType.startsWith("multipart/form-data")) {
         delete params.headers["content-type"];
         let formData = new FormData();
         for (let key in req.body) {
           formData.append(key, req.body[key]);
         }
         for (let file of req.files) {
-          formData.append(file.fieldname, new Blob([file.buffer], { type: file.mimetype }), file.originalname);
+          formData.append(
+            file.fieldname,
+            new Blob([file.buffer], { type: file.mimetype }),
+            file.originalname,
+          );
         }
         params.body = formData;
       }
     }
-    console.log("params", params);
 
-    let filename =
+    filename =
       config.get("filenamePrefix", "") +
       Date.now() +
       "-" +
@@ -67,8 +66,8 @@ async function handleRequest(req, res, method) {
       filepath = req.headers["3suite-filepath"];
     }
 
-    const stream = fs.createWriteStream(filepath);
-    let response = await fetch(
+    stream = fs.createWriteStream(filepath);
+    response = await fetch(
       "http" +
         (config.get("useHttps", false) ? "s" : "") +
         "://" +
@@ -76,18 +75,24 @@ async function handleRequest(req, res, method) {
         req.url,
       params,
     );
-
+  } catch (e) {
+    console.log("error with request");
+    console.log(e);
+    res.status(500);
+    res.end("error");
+    return;
+  }
+  try {
     await finished(Readable.fromWeb(response.body).pipe(stream));
 
     res.send(filename);
   } catch (e) {
-    console.log("error with request");
+    console.log("error with response");
     console.log(e);
+    res.status(500);
     res.end("error");
   }
 }
-
-
 
 app.post("*", (req, res) => {
   handleRequest(req, res, "POST");
