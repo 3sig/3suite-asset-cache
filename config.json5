@@ -1,0 +1,8 @@
+{
+  destinationServer: "192.168.0.52:5001",
+  port: 3002,
+  directory: "audio",
+  fileExtension: ".wav",
+  filenamePrefix: "audio_",
+  useHttps: false,
+}
