@@ -22,6 +22,8 @@ jobs:
       - run: bun build --compile --target=bun-linux-x64 main.js --outfile ${{ github.event.repository.name }}_${{ env.COMMIT_SHORT_SHA }}_linux
       - run: bun build --compile --target=bun-darwin-arm64 main.js --outfile ${{ github.event.repository.name }}_${{ env.COMMIT_SHORT_SHA }}_osx-arm
       - run: bun build --compile --target=bun-darwin-x64 main.js --outfile ${{ github.event.repository.name }}_${{ env.COMMIT_SHORT_SHA }}_osx-x64
+      - name: Fix Windows executable permissions
+        run: chmod 644 ${{ github.event.repository.name }}_${{ env.COMMIT_SHORT_SHA }}_win.exe
       - name: Upload windows-executable
         uses: actions/upload-artifact@v4
         with:
