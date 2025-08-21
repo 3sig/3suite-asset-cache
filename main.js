@@ -38,7 +38,6 @@ async function handleRequest(req, res, method) {
       if (contentType.startsWith("application/json")) {
         params.body = JSON.stringify(req.body);
       } else if (contentType.startsWith("multipart/form-data")) {
-        delete params.headers["content-type"];
         let formData = new FormData();
         for (let key in req.body) {
           formData.append(key, req.body[key]);
@@ -51,6 +50,12 @@ async function handleRequest(req, res, method) {
           );
         }
         params.body = formData;
+
+        // these are headers that need to be set by our fetch, so having them
+        // set breaks the request
+        delete modifiedHeaders["content-type"];
+        delete modifiedHeaders["accept-encoding"];
+        delete modifiedHeaders["transfer-encoding"]
       }
     }
 
@@ -84,7 +89,6 @@ async function handleRequest(req, res, method) {
   }
   try {
     await finished(Readable.fromWeb(response.body).pipe(stream));
-
     res.send(filename);
   } catch (e) {
     console.log("error with response");
