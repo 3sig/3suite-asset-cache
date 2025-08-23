@@ -8,7 +8,6 @@ import { finished } from "stream/promises";
 import multer from "multer";
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
-// const upload = multer({ dest: 'uploads/' });
 
 config.init();
 
@@ -17,15 +16,22 @@ let sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const app = express();
 
 app.use(upload.any());
-app.use(express.json({ limit: "500mb" })); // for parsing application/json
+app.use(express.json({ limit: "500mb" }));
 app.use(express.urlencoded({ limit: "500mb" }));
 app.use(cors());
 
 let assetId = 0;
 async function handleRequest(req, res, method) {
   let response, stream, filename;
+  const verbose = config.get("verbose", false);
+  
+  console.log(`Processing ${method} request to ${req.url}`);
+  if (verbose) {
+    console.log(`Full URL: ${config.get("destinationServer")}${req.url}`);
+    console.log(`Headers: ${JSON.stringify(req.headers, null, 2)}`);
+  }
+  
   try {
-    console.log("executing request", config.get("destinationServer") + req.url);
     let modifiedHeaders = { ...req.headers };
 
     let params = {
@@ -51,11 +57,15 @@ async function handleRequest(req, res, method) {
         }
         params.body = formData;
 
-        // these are headers that need to be set by our fetch, so having them
-        // set breaks the request
         delete modifiedHeaders["content-type"];
         delete modifiedHeaders["accept-encoding"];
-        delete modifiedHeaders["transfer-encoding"]
+        delete modifiedHeaders["transfer-encoding"];
+        
+        if (verbose) {
+          console.log(`Form data fields: ${Object.keys(req.body).length}`);
+          console.log(`Files: ${req.files.length}`);
+          req.files.forEach((file, i) => console.log(`File ${i}: ${file.originalname} (${file.size} bytes)`));
+        }
       }
     }
 
@@ -69,30 +79,51 @@ async function handleRequest(req, res, method) {
 
     if (req.headers["3suite-filepath"]) {
       filepath = req.headers["3suite-filepath"];
+      console.log(`Using custom filepath: ${filepath}`);
+    } else {
+      console.log(`Generated filename: ${filename}`);
+      if (verbose) {
+        console.log(`Full filepath: ${filepath}`);
+        console.log(`Asset ID: ${assetId - 1}`);
+      }
     }
 
     stream = fs.createWriteStream(filepath);
-    response = await fetch(
-      "http" +
-        (config.get("useHttps", false) ? "s" : "") +
-        "://" +
-        config.get("destinationServer") +
-        req.url,
-      params,
-    );
+    const targetUrl = "http" +
+      (config.get("useHttps", false) ? "s" : "") +
+      "://" +
+      config.get("destinationServer") +
+      req.url;
+    
+    if (verbose) {
+      console.log(`Fetching from: ${targetUrl}`);
+      console.log(`Request params: ${JSON.stringify({method, headers: Object.keys(modifiedHeaders)}, null, 2)}`);
+    }
+    
+    response = await fetch(targetUrl, params);
   } catch (e) {
-    console.log("error with request");
-    console.log(e);
+    console.log(`Request failed: ${e.message}`);
+    if (verbose) {
+      console.log(`Full error: ${e.stack}`);
+    }
     res.status(500);
     res.end("error");
     return;
   }
   try {
+    if (verbose) {
+      console.log(`Response status: ${response.status}`);
+      console.log(`Response headers: ${JSON.stringify(Object.fromEntries(response.headers), null, 2)}`);
+    }
+    
     await finished(Readable.fromWeb(response.body).pipe(stream));
+    console.log(`Asset cached successfully: ${filename}`);
     res.send(filename);
   } catch (e) {
-    console.log("error with response");
-    console.log(e);
+    console.log(`Response streaming failed: ${e.message}`);
+    if (verbose) {
+      console.log(`Full error: ${e.stack}`);
+    }
     res.status(500);
     res.end("error");
   }
@@ -114,7 +145,16 @@ app.options("*", (req, res) => {
   handleRequest(req, res, "OPTIONS");
 });
 
-let port = config.get("port");
+const port = config.get("port");
+const verbose = config.get("verbose", false);
+
 app.listen(port, () => {
   console.log(`3suite-asset-cache listening on port ${port}`);
+  if (verbose) {
+    console.log(`Destination server: ${config.get("destinationServer")}`);
+    console.log(`HTTPS enabled: ${config.get("useHttps", false)}`);
+    console.log(`Cache directory: ${config.get("directory")}`);
+    console.log(`Filename prefix: ${config.get("filenamePrefix", "none")}`);
+    console.log(`File extension: ${config.get("fileExtension", "none")}`);
+  }
 });
