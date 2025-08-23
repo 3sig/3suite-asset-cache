@@ -24,13 +24,13 @@ let assetId = 0;
 async function handleRequest(req, res, method) {
   let response, stream, filename;
   const verbose = config.get("verbose", false);
-  
+
   console.log(`Processing ${method} request to ${req.url}`);
   if (verbose) {
     console.log(`Full URL: ${config.get("destinationServer")}${req.url}`);
     console.log(`Headers: ${JSON.stringify(req.headers, null, 2)}`);
   }
-  
+
   try {
     let modifiedHeaders = { ...req.headers };
 
@@ -43,6 +43,10 @@ async function handleRequest(req, res, method) {
       let contentType = req.headers["content-type"];
       if (contentType.startsWith("application/json")) {
         params.body = JSON.stringify(req.body);
+
+        if (verbose) {
+          console.log(`JSON body: ${JSON.stringify(req.body)}`);
+        }
       } else if (contentType.startsWith("multipart/form-data")) {
         let formData = new FormData();
         for (let key in req.body) {
@@ -60,7 +64,7 @@ async function handleRequest(req, res, method) {
         delete modifiedHeaders["content-type"];
         delete modifiedHeaders["accept-encoding"];
         delete modifiedHeaders["transfer-encoding"];
-        
+
         if (verbose) {
           console.log(`Form data fields: ${Object.keys(req.body).length}`);
           console.log(`Files: ${req.files.length}`);
@@ -94,12 +98,12 @@ async function handleRequest(req, res, method) {
       "://" +
       config.get("destinationServer") +
       req.url;
-    
+
     if (verbose) {
       console.log(`Fetching from: ${targetUrl}`);
       console.log(`Request params: ${JSON.stringify({method, headers: Object.keys(modifiedHeaders)}, null, 2)}`);
     }
-    
+
     response = await fetch(targetUrl, params);
   } catch (e) {
     console.log(`Request failed: ${e.message}`);
@@ -115,7 +119,7 @@ async function handleRequest(req, res, method) {
       console.log(`Response status: ${response.status}`);
       console.log(`Response headers: ${JSON.stringify(Object.fromEntries(response.headers), null, 2)}`);
     }
-    
+
     await finished(Readable.fromWeb(response.body).pipe(stream));
     console.log(`Asset cached successfully: ${filename}`);
     res.send(filename);
