@@ -66,7 +66,10 @@ async function handleRequest(req, res, method) {
         delete modifiedHeaders["transfer-encoding"];
 
         if (verbose) {
-          console.log(`Form data fields: ${Object.keys(req.body).length}`);
+          for (let key of formData.keys()) {
+            console.log(`Form data key: ${key}`);
+            console.log(`Form data value: ${formData.get(key)}`);
+          }
           console.log(`Files: ${req.files.length}`);
           req.files.forEach((file, i) => console.log(`File ${i}: ${file.originalname} (${file.size} bytes)`));
         }
