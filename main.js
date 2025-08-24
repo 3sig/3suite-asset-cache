@@ -5,9 +5,7 @@ import process from "process";
 import express from "express";
 import { Readable } from "stream";
 import { finished } from "stream/promises";
-import multer from "multer";
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+import formidable from "formidable";
 
 config.init();
 
@@ -15,7 +13,6 @@ let sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const app = express();
 
-app.use(upload.any());
 app.use(express.json({ limit: "500mb" }));
 app.use(express.urlencoded({ limit: "500mb" }));
 app.use(cors());
@@ -41,13 +38,46 @@ async function handleRequest(req, res, method) {
 
     if (method == "POST") {
       let contentType = req.headers["content-type"];
-      if (contentType.startsWith("application/json")) {
+      if (contentType && contentType.startsWith("application/json")) {
         params.body = JSON.stringify(req.body);
 
         if (verbose) {
           console.log(`JSON body: ${JSON.stringify(req.body)}`);
         }
-      } else if (contentType.startsWith("multipart/form-data")) {
+
+      // below here we shimmed the existing code with formidable
+      // we previously used multer, but it couldn't recognize requests from bunjs
+      // todo: clean this up. i'm sure this is a mess
+      } else if (contentType && contentType.startsWith("multipart/form-data")) {
+        const form = formidable({ keepExtensions: true });
+        const [fields, files] = await form.parse(req);
+
+        // Convert formidable format to multer-compatible format
+        req.body = {};
+        req.files = [];
+
+        // Handle fields
+        for (let [key, value] of Object.entries(fields)) {
+          req.body[key] = Array.isArray(value) ? value[0] : value;
+        }
+
+        // Handle files
+        for (let [fieldname, fileArray] of Object.entries(files)) {
+          const fileList = Array.isArray(fileArray) ? fileArray : [fileArray];
+          for (let file of fileList) {
+            const buffer = await fs.promises.readFile(file.filepath);
+            req.files.push({
+              fieldname: fieldname,
+              originalname: file.originalFilename,
+              mimetype: file.mimetype,
+              buffer: buffer,
+              size: file.size
+            });
+            // Clean up temporary file
+            await fs.promises.unlink(file.filepath);
+          }
+        }
+
         let formData = new FormData();
         for (let key in req.body) {
           formData.append(key, req.body[key]);
